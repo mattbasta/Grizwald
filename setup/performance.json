@@ -1,0 +1,19 @@
+{
+   "_id": "_design/performance",
+   "_rev": "7-a1d074cac75c83bc16c8369288f9a053",
+   "views": {
+       "average_performance": {
+           "map": "function(doc){\n\tif(doc.error){return;}\n\temit([doc.commit, doc.commit_ts], doc.duration);\n}",
+           "reduce": "_stats"
+       },
+       "traceback_count": {
+           "map": "function(doc){\n\tif(!doc.error){return;}\n\temit([doc.commit, doc.commit_ts], 1);\n}",
+           "reduce": "_sum"
+       },
+       "error_counts": {
+           "map": "function(doc){\n\tif(doc.error){return;}\n\tfor(var mid in doc.messages) {\n\t\tvar m = doc.messages[mid];\n\t\temit([doc.commit, doc.commit_ts].concat(m.id), 1)\n\t}\n}",
+           "reduce": "_sum"
+       }
+   },
+   "language": "javascript"
+}

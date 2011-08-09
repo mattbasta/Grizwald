@@ -36,3 +36,15 @@ That's it! By default, the server should start on port 8080, meaning it will
 be accessible from http://localhost:8080/.
 
 
+--------------------
+ Setting Up CouchDB
+--------------------
+
+First, install CouchDB using the method most appropriate for your platform.
+
+Next, create the databases ``grizwald`` and ``grizwald_js`` using Futon.
+
+Last, create a design document in ``grizwald`` with the ID
+``_design/performance``. The properties of the document can be found in
+``/setup/performance.json``.
+
