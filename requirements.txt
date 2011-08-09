@@ -1,0 +1,5 @@
+mechanize
+couchdb
+
+# Server requirements
+tornado
