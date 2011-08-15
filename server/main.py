@@ -21,7 +21,7 @@ class RootHandler(web.RequestHandler):
 if __name__ == "__main__":
     print "Starting server..."
     patterns.extend([(r"/", RootHandler)])
-    application = tornado.web.Application(patterns)
+    application = tornado.web.Application(patterns, debug=constants.DEBUG)
 
     application.listen(constants.PORT)
     print "Listening"
