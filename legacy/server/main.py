@@ -18,10 +18,19 @@ class RootHandler(web.RequestHandler):
         self.write(constants.loader.load("home.html").generate())
 
 
+class ErrorsHandler(web.RequestHandler):
+    """Give a general summary of the error counts."""
+
+    def get(self):
+        self.write(constants.loader.load("errors.html").generate())
+
+
 if __name__ == "__main__":
     print "Starting server..."
-    patterns.extend([(r"/", RootHandler)])
-    application = tornado.web.Application(patterns, debug=constants.DEBUG)
+    patterns.extend([(r"/", RootHandler),
+                     (r"/errors", ErrorsHandler)])
+    application = tornado.web.Application(patterns, debug=constants.DEBUG,
+                                          static_path="static/")
 
     application.listen(constants.PORT)
     print "Listening"

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Professor Grizwald - AMO Validator Statistics Engine</title>
+    <link type="text/css" rel="stylesheet" href="http://framecdn.serverboy.net/latest.css" />
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+    <!--
+    google.load("visualization", "1", {packages:["corechart", "motionchart"]});
+    var load_count = 2;
+
+    function traceback_graph() {
+        $.getJSON(
+            "http://10.250.4.19:5984/grizwald/_design/performance/_view/traceback_count?group=true&callback=?",
+            function(j) {
+                var data = new google.visualization.DataTable();
+                data.addColumn("string", "Commit");
+                data.addColumn("number", "Tracebacks");
+                data.addRows(j.rows.length);
+                for(var r in j.rows) {
+                    var row = j.rows[r];
+                    r = parseInt(r);
+                    data.setValue(r, 0, row.key[1]);
+                    data.setValue(r, 1, row.value);
+                }
+                var chart = new google.visualization.LineChart(document.getElementById('tracebacks_chart'));
+                chart.draw(
+                    data,
+                    {width: 900,
+                     height:300,
+                     title: "Validator Tracebacks",
+                     hAxis: {title: "Commit"},
+                     vAxis: {title: "Tracebacks", viewWindow: {min: 0}},
+                     pointSize: 8,
+                     lineWidth: 3,
+                     series: [{color: "#b00"}]});
+            }
+        );
+    }
+    function performance_graph() {
+        $.getJSON(
+            "http://10.250.4.19:5984/grizwald/_design/performance/_view/average_performance?group=true&callback=?",
+            function(j) {
+                var data = new google.visualization.DataTable();
+                data.addColumn("string", "Commit");
+                data.addColumn("number", "Min Validation Time");
+                data.addColumn("number", "Mean Validation Time");
+                data.addRows(j.rows.length);
+                for(var r in j.rows) {
+                    var row = j.rows[r];
+                    r = parseInt(r);
+                    data.setValue(r, 0, row.key[1]);
+                    data.setValue(r, 1, row.value.min * 1000);
+                    data.setValue(r, 2, row.value.sum / row.value.count * 1000);
+                }
+                var chart = new google.visualization.LineChart(document.getElementById('performance_chart'));
+                chart.draw(
+                    data,
+                    {width: 900,
+                     height:300,
+                     title: "Validator Performance",
+                     hAxis: {title: "Commit"},
+                     vAxis: {title: "Milliseconds", viewWindow: {min: 0}},
+                     lineWidth: 3});
+            }
+        );
+    }
+    function error_stats_graph() {
+        $.getJSON(
+            "http://10.250.4.19:5984/grizwald/_design/performance/_view/message_counts?group=true&callback=?",
+            function(j) {
+                var data = new google.visualization.DataTable();
+                data.addColumn("string", "Commit");
+                data.addColumn("number", "Errors");
+                data.addColumn("number", "Notices");
+                data.addColumn("number", "Warnings");
+                data.addRows(j.rows.length / 3 - 1);
+                for(var r = 3; r < j.rows.length; r += 3) {
+                    // This assumes that there are errors, notices, and warnings for all commits.
+                    data.setValue(r / 3 - 1, 0, j.rows[r].key[1]);
+                    data.setValue(r / 3 - 1, 1, j.rows[r - 3].value - j.rows[r].value);
+                    data.setValue(r / 3 - 1, 2, j.rows[r - 2].value - j.rows[r + 1].value);
+                    data.setValue(r / 3 - 1, 3, j.rows[r - 1].value - j.rows[r + 2].value);
+                }
+                var chart = new google.visualization.LineChart(document.getElementById('error_stats_chart'));
+                chart.draw(
+                    data,
+                    {width: 900,
+                     height:300,
+                     title: "Error Aggregation Stats",
+                     hAxis: {title: "Commit"},
+                     vAxis: {title: "Message Count"}});
+            }
+        );
+    }
+
+    function error_count_graph(depth) {
+        if(!depth)
+            depth = 3;
+        $.getJSON(
+            "/api/error_count?depth=" + (depth + 2) + "&callback=?",
+            function(j) {
+                var data = new google.visualization.DataTable();
+                data.addColumn("string", "Commit");
+                data.addColumn("date", "Date");
+                data.addColumn("string", "Module");
+                if(depth > 1)
+                    data.addColumn("string", "Function")
+                if(depth > 2)
+                    data.addColumn("string", "Task")
+                data.addColumn("number", "Error Count");
+                data.addRows(j.rows.length);
+                for(var r in j.rows) {
+                    var row = j.rows[r];
+                    r = parseInt(r);
+                    d = new Date();
+                    d.setTime(row[0][0]);
+                    data.setValue(r, 0, row.key[0][1]);
+                    data.setValue(r, 1, d);
+                    data.setValue(r, 2, row.key[2]);
+                    var o = 0;
+                    if(depth > 1) {
+                        data.setValue(r, 3, row.key[3]);
+                        if(depth > 2) {
+                            data.setValue(r, 4, row.key[4]);
+                            o++;
+                        }
+                        o++;
+                    }
+                    data.setValue(r, 3 + o, row.value);
+                }
+                var chart = new google.visualization.MotionChart(document.getElementById('error_count_chart'));
+                chart.draw(
+                    data,
+                    {width: 900,
+                     height:750});
+            }
+        )
+    }
+
+    function doLoad() {
+        load_count--;
+        if(load_count > 0) {return;}
+        traceback_graph();
+        performance_graph();
+        error_stats_graph();
+        //error_count_graph(3);
+    }
+    google.setOnLoadCallback(doLoad);
+    $(document).ready(doLoad);
+    -->
+    </script>
+  </head>
+  <body>
+    <div id="container">
+      <header>
+        <h1>Grizwald - AMO Validator Statistics</h1>
+      </header>
+      <section id="tracebacks">
+        <h2>Traceback Counts</h2>
+        <div class="graph" id="tracebacks_chart"></div>
+        <p>A plot of tracebacks over time. This number should stay VERY low at
+        all times.</p>
+      </section>
+      <section id="performance">
+        <h2>Performance Data</h2>
+        <div class="graph" id="performance_chart"></div>
+        <p>A plot of validation duration over time. Large fluctuations are a
+        bad sign.</p>
+      </section>
+      <section id="errors">
+        <h2>Error Analysis</h2>
+        <div class="graph" id="error_stats_chart"></div>
+        <p>A plot of the aggregate number of errors, warnings, and notices
+        raised by the validator. Changes should accurately reflect the changes
+        made in the commit. Spikes are bad.</p>
+      </section>
+
+    </div>
+  </body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Professor Grizwald - AMO Validator Statistics Engine</title>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+    <script src="/static/js/highcharts.js" type="text/javascript"></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+    <!--
+    google.load("visualization", "1", {packages:["corechart", "annotatedtimeline"]});
+    var load_count = 2;
+
+    function annotate(url, stats) {
+        return "api/annotate?url=" + escape(url) + (stats ? "&stats=true" : "");
+    }
+
+    function error_count_graph() {
+        $.getJSON(
+            "/api/error_count?callback=?",
+            function(j) {
+                var data = new google.visualization.DataTable();
+                data.addColumn("string", "Commit");
+                var be = j.rows[0][1];
+                for(var e = 0; e < be.length; e++) {
+                    var rr = be[e];
+                    if(rr[0] == "zzzzz") continue;
+                    data.addColumn("number", rr.join("::"));
+                }
+                data.addRows(j.rows.length - 1);
+                for(var r = 1; r < j.rows.length; r++) {
+                    data.setValue(r - 1, 0, j.rows[r][0][1]);
+                    var c = 1;
+                    for(var cc = 0; cc < j.rows[r][1].length; cc++) {
+                        if(j.rows[r][1][0] == "zzzzz") continue;
+                        data.setValue(r - 1, c, j.rows[r][1][cc][1]);
+                        c++;
+                    }
+                }
+                var chart = new google.visualization.LineChart(document.getElementById('error_stats_chart'));
+                chart.draw(
+                    data,
+                    {width: 1500,
+                     height: 500,
+                     title: "Error Aggregation Stats",
+                     hAxis: {title: "Commit"},
+                     vAxis: {title: "Message Count"}});
+            }
+        );
+    }
+
+    function doLoad() {
+        load_count--;
+        if(load_count > 0) {return;}
+        error_count_graph();
+    }
+    google.setOnLoadCallback(doLoad);
+    $(document).ready(doLoad);
+    -->
+    </script>
+  </head>
+  <body>
+    <div id="container">
+      <header>
+        <h1>Grizwald - AMO Validator Statistics</h1>
+      </header>
+      <section id="errors">
+        <h2>Error Analysis</h2>
+        <div class="graph" id="error_stats_chart" style="width:960px; height:350px"></div>
+        <p>A plot of the aggregate number of errors, warnings, and notices
+        raised by the validator. Changes should accurately reflect the changes
+        made in the commit. Spikes are bad.</p>
+      </section>
+
+    </div>
+  </body>
+</html>

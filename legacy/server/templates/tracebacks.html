@@ -2,45 +2,115 @@
 <html>
   <head>
     <title>Professor Grizwald - AMO Validator Statistics Engine</title>
-    <link type="text/css" rel="stylesheet" href="http://framecdn.serverboy.net/latest.css" />
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+    <script src="/static/js/highcharts.js" type="text/javascript"></script>
     <script type="text/javascript" src="https://www.google.com/jsapi"></script>
     <script type="text/javascript">
     <!--
-    google.load("visualization", "1", {packages:["corechart", "motionchart"]});
+    google.load("visualization", "1", {packages:["corechart", "annotatedtimeline"]});
     var load_count = 2;
+
+    function annotate(url, stats) {
+        return "api/annotate?url=" + escape(url) + (stats ? "&stats=true" : "");
+    }
+
+    function time(ts) {
+        var d = new Date();
+        d.setTime(parseInt(ts) * 1000);
+        return d;
+    }
 
     function traceback_graph() {
         $.getJSON(
-            "http://127.0.0.1:5984/grizwald/_design/performance/_view/traceback_count?group=true&callback=?",
+            annotate("http://10.250.7.190:5984/grizwald/_design/performance/_view/traceback_count?group=true", true),
             function(j) {
+
+                var chart = new Highcharts.StockChart({
+                    chart : {
+                        renderTo: "tracebacks_chart",
+                        spacingBottom: 40
+                    },
+                    legend: {
+                        enabled: true,
+                        y: 40
+                    },
+                    rangeSelector : {
+                        selected: 5,/*
+                        buttons: [{
+                            type: 'month',
+                            count: 1,
+                            text: gettext('1m')
+                        }, {
+                            type: 'month',
+                            count: 3,
+                            text: gettext('3m')
+                        }, {
+                            type: 'month',
+                            count: 6,
+                            text: gettext('6m')
+                        }, {
+                            type: 'ytd',
+                            text: gettext('YTD')
+                        }, {
+                            type: 'year',
+                            count: 1,
+                            text: gettext('1y')
+                        }, {
+                            type: 'all',
+                            text: gettext('All')
+                        }],*/
+                        inputStyle: {
+                            fontSize: '10px'
+                        }
+                    },
+                    title: {text: "Traceback Count"},
+                    xAxis: {
+                        type: "datetime"
+                    },
+                    yAxis: {
+                        title: {text: "Tracebacks"}
+                    },
+                    tooltip: {
+                        style: {width: 200},
+                        formatter: function() {
+                            var x = this.x, s;
+                            s = ["<b>" + Highcharts.dateFormat('%A, %b %e, %Y', x) + "</b>",
+                                 "Tracebacks: <em>" ]
+                        }
+                    }
+                });
+
                 var data = new google.visualization.DataTable();
-                data.addColumn("string", "Commit");
+                data.addColumn("date", "Date");
                 data.addColumn("number", "Tracebacks");
+                data.addColumn("string", "Commit");
+                data.addColumn("string", "Log");
                 data.addRows(j.rows.length);
+
                 for(var r in j.rows) {
                     var row = j.rows[r];
                     r = parseInt(r);
-                    data.setValue(r, 0, row.key[1]);
+                    data.setValue(r, 0, time(row.key[0])),
                     data.setValue(r, 1, row.value);
+                    data.setValue(r, 2, row.value > j.stats.average ? row.key[1] : undefined);
+                    data.setValue(r, 3, row.value > j.stats.average ? row.log.replace("\n", "<br />") : undefined);
                 }
-                var chart = new google.visualization.LineChart(document.getElementById('tracebacks_chart'));
+                var chart = new google.visualization.AnnotatedTimeLine(document.getElementById('tracebacks_chart'));
                 chart.draw(
                     data,
-                    {width: 900,
-                     height:300,
-                     title: "Validator Tracebacks",
-                     hAxis: {title: "Commit"},
-                     vAxis: {title: "Tracebacks", viewWindow: {min: 0}},
-                     pointSize: 8,
-                     lineWidth: 3,
-                     series: [{color: "#b00"}]});
+                    {allowHtml: true,
+                     colors: ["#bb0000"],
+                     displayAnnotations: true,
+                     displayAnnotationsFilter: true,
+                     thickness: 3}
+                );
+
             }
         );
     }
     function performance_graph() {
         $.getJSON(
-            "http://127.0.0.1:5984/grizwald/_design/performance/_view/average_performance?group=true&callback=?",
+            annotate("http://10.250.7.190:5984/grizwald/_design/performance/_view/average_performance?group=true"),
             function(j) {
                 var data = new google.visualization.DataTable();
                 data.addColumn("string", "Commit");
@@ -68,7 +138,7 @@
     }
     function error_stats_graph() {
         $.getJSON(
-            "http://127.0.0.1:5984/grizwald/_design/performance/_view/message_counts?group=true&callback=?",
+            annotate("http://10.250.7.190:5984/grizwald/_design/performance/_view/message_counts?group=true"),
             function(j) {
                 var data = new google.visualization.DataTable();
                 data.addColumn("string", "Commit");
@@ -157,28 +227,12 @@
       <header>
         <h1>Grizwald - AMO Validator Statistics</h1>
       </header>
-      <section id="tracebacks">
-        <h2>Traceback Counts</h2>
-        <div class="graph" id="tracebacks_chart"></div>
-        <p>A plot of tracebacks over time. This number should stay VERY low at
-        all times.</p>
-      </section>
-      <section id="performance">
-        <h2>Performance Data</h2>
-        <div class="graph" id="performance_chart"></div>
-        <p>A plot of validation duration over time. Large fluctuations are a
-        bad sign.</p>
-      </section>
       <section id="errors">
         <h2>Error Analysis</h2>
-        <div class="graph" id="error_stats_chart"></div>
+        <div class="graph" id="error_stats_chart" style="width:960px; height:350px"></div>
         <p>A plot of the aggregate number of errors, warnings, and notices
         raised by the validator. Changes should accurately reflect the changes
         made in the commit. Spikes are bad.</p>
-        <div class="graph" id="error_count_chart"></div>
-        <p>A plot of the number of errors that were raised by the validator
-        over time. Changes in magnitude between commits should be appropriate
-        for the nature of the related commit.</p>
       </section>
 
     </div>
