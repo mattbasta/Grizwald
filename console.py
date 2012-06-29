@@ -72,7 +72,14 @@ def deploy(job_id, repo, commit=None, install=False):
 
 def tear_down(job_id):
     print "Tearing down job %s" % job_id
-    shutil.rmtree(os.path.join(JOBS_DIR, job_id))
+    job_dir = os.path.join(JOBS_DIR, job_id)
+    try:
+        os.unlink(os.path.join(job_dir, "__unlocked__.py"))
+    except OSError:
+        print "Already being torn down."
+    else:
+        shutil.rmtree(job_dir)
+
 
 def do_work(job_id, work_unit):
     print "Running work unit %s" % work_unit
