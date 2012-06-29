@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!--[if lt IE 7 ]> <html lang="en" class="no-js ie6"> <![endif]-->
+<!--[if IE 7 ]>    <html lang="en" class="no-js ie7"> <![endif]-->
+<!--[if IE 8 ]>    <html lang="en" class="no-js ie8"> <![endif]-->
+<!--[if IE 9 ]>    <html lang="en" class="no-js ie9"> <![endif]-->
+<!--[if (gt IE 9)|!(IE)]><!--> <html lang="en" class="no-js"> <!--<![endif]-->
+  <head>
+    <meta charset="utf-8">
+    <title>Grizwald</title>
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link href="/static/css.css" rel="stylesheet" type="text/css" />
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="navbar">
+        <div class="navbar-inner">
+          <div class="container">
+            <a class="brand" href="/">Grizwald</a>
+            <ul class="nav">
+              <li><a href="/">Add Work</a></li>
+              <li><a href="/static/index.html">Watch</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <form action="/" method="post" class="form form-horizontal">
+        <fieldset>
+          <legend>Add Work</legend>
+          <div class="control-group">
+            <label class="control-label">Git Repo</label>
+            <div class="controls">
+              <input type="text" class="input-xl" name="repo" />
+              <p class="help-block">The Git URL to use to pull the latest version of your project. You should consider using the read-only Git (non-HTTP) URL.</p>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">Commit ID</label>
+            <div class="controls">
+              <input type="text" name="commit" />
+              <p class="help-block">The commit ID of the project at which to run the job at.</p>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">Resources</label>
+            <div class="controls">
+              <input type="text" name="resources" />
+              <p class="help-block">The directory name to pull job items from.</p>
+            </div>
+          </div>
+          <div class="form-actions">
+            <input type="submit" value="Create Job" class="btn btn-primary" />
+          </div>
+        </fieldset>
+      </form>
+
+    </div> <!-- /container -->
+  </body>
+</html>

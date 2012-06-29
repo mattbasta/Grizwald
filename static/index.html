@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Grizwald Statistics</title>
+    <style type="text/css">
+    body, html {padding:0;margin:0;}
+    </style>
+    <script type="text/javascript" src="raphael.js"></script>
+    <script type="text/javascript">
+    bubbles = [];
+    bmap = {};
+    s = null;
+    rap = null;
+    bdists = [];
+    if(!window.requestAnimationFrame)
+      requestAnimationFrame = window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+
+    function bdist(b1, b2) {
+      return Math.sqrt(Math.pow(b1.x - b2.x, 2) + Math.pow(b1.y - b2.y, 2));
+    }
+
+    function refresh_bdists() {
+      var d = [];
+      for(var i = 0; i < bubbles.length; i++) {
+        var ds = [];
+        for(var j = 0; j < bubbles.length; j++) {
+          ds.push(bdist(bubbles[i], bubbles[j]));
+        }
+        d.push(ds);
+      }
+      bdists = d;
+    }
+
+    function mirror_vector(s_x, s_y, c_x, c_y) {
+      return [c_x + 2 * s_x,
+              c_y + 2 * s_y];
+    }
+
+    // The garbage-free version of the above function.
+    function update_bdists() {
+      for(var i = 0; i < bubbles.length; i++)
+        for(var j = 0; j < bubbles.length; j++)
+          bdists[i][j] = bdist(bubbles[i], bubbles[j]);
+    }
+    function bubble_size(size) {return Math.log(size / 10) * 15;}
+    function add_bubble(job_id, size) {
+      var bubble = {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 4,
+        v_x: Math.random(), v_y: Math.random(),
+        radius: bubble_size(size),
+        color: Raphael.getColor()
+      };
+      bubble.circ = rap.circle(bubble.x, bubble.y, bubble.radius).attr({fill: bubble.color, stroke: "none"});
+      s.push(bubble.circ);
+      bubbles.push(bubble);
+      bmap[job_id] = bubble;
+
+      refresh_bdists();
+    }
+
+    function drop_bubble(job_id) {
+      var new_map = [];
+      var bl = bubbles.length;
+      var b = bmap[job_id];
+      for(var i = 0; i < bl; i++)
+        if(bubbles[i] != b)
+          new_map.push(bubbles[i]);
+      bubbles = new_map;
+      delete bmap[job_id];
+
+      refresh_bdists();
+    }
+
+    window.onload = function() {
+      rap = Raphael("body", window.innerWidth, window.innerHeight - 10);
+      s = rap.set();
+      s.attr({stroke: Raphael.getColor()});
+
+      var origin_x = window.innerWidth / 2,
+          origin_y = window.innerHeight / 4;
+      function tick() {
+        for(var i = 0; i < bubbles.length; i++) {
+          var b = bubbles[i],
+              bd = Math.sqrt(b.x * b.x + b.y * b.y);
+          b.x += b.v_x;
+          b.y += b.v_y;
+
+          if(b.x < b.radius) {
+            b.v_x *= -1;
+            b.x = b.radius;
+          } else if(b.x > window.innerWidth - b.radius) {
+            b.v_x *= -1;
+            b.x = window.innerWidth - b.radius;
+          }
+          if(b.y < b.radius) {
+            b.v_y *= -1;
+            b.y = b.radius;
+          } else if(b.y > window.innerHeight - b.radius) {
+            b.v_y *= -1;
+            b.y = window.innerHeight - b.radius;
+          }
+
+          b.circ.attr({cx: b.x, cy: b.y});
+
+          var o_x = b.x - origin_x,
+              o_y = b.y - origin_y,
+              o_d = Math.sqrt(o_x * o_x + o_y * o_y);
+          o_x /= o_d;
+          o_y /= o_d;
+
+          if(Math.sqrt(b.x * b.x + b.y * b.y) > bd) {
+            b.v_x -= o_x * 0.04;
+            b.v_y -= o_y * 0.04;
+          } else {
+            b.v_x -= o_x * 0.01;
+            b.v_y -= o_y * 0.01;
+          }
+        }
+        for(var i = 0; i < bubbles.length; i++) {
+          for(var j = i + 1; j < bubbles.length; j++) {
+            var b1 = bubbles[i], b2 = bubbles[j];
+            var d = bdist(b1, b2),
+                d_less = bdists[i][j] > d;
+            if(d < b1.radius + b2.radius) {
+              var vecx = b2.x - b1.x,
+                  vecy = b2.y - b1.y;
+              vecx /= d;
+              vecy /= d;
+              if(d_less) {
+                // console.log("Collision!");
+                var b1v = mirror_vector(-vecx, -vecy, b1.v_x, b1.v_y),
+                    b2v = mirror_vector(vecx, vecy, b2.v_x, b2.v_y);
+                b1.v_x = b1v[0] * 0.6;
+                b1.v_y = b1v[1] * 0.6;
+                b2.v_x = b2v[0] * 0.6;
+                b2.v_y = b2v[1] * 0.6;
+              } else {
+                b1.v_x += -0.05 * vecx;
+                b1.v_y += -0.05 * vecx;
+                b2.v_x += 0.05 * vecx;
+                b2.v_y += 0.05 * vecx;
+              }
+            }
+          }
+        }
+        update_bdists();
+        window.requestAnimationFrame(tick);
+      }
+      window.requestAnimationFrame(tick);
+
+      var wsurl = "ws" + window.location.href.substr(4);
+      wsurl = wsurl.split("/").slice(0, 3).join("/") + "/socket";
+      var ws = new WebSocket(wsurl);
+      ws.onmessage = function(message) {
+        //console.log(message);
+        var m = JSON.parse(message.data);
+        var bubble = bmap[m.job];
+        if(bubble) {
+          if(m.size == 0) {
+            drop_bubble(m.job);
+            return;
+          }
+          var rad = bubble_size(m.size);
+          bubble.circ.animate({r: rad});
+          bubble.radius = rad;
+        } else {
+          add_bubble(m.job, m.size);
+        }
+      };
+
+    }
+    </script>
+  </head>
+  <body id="body"></body>
+</html>
