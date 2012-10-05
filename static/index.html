@@ -160,6 +160,8 @@
           bubble.circ.animate({r: rad});
           bubble.radius = rad;
         } else {
+          if(m.size == 0)
+            return;
           add_bubble(m.job, m.size);
         }
       };

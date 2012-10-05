@@ -48,6 +48,13 @@ BRUKVA_PS.listen(on_activity)
 class WSHandler(WebSocketHandler):
     def open(self):
         SOCKETS.add(self)
+        jobs = REDIS.smembers("jobs")
+        for job in jobs:
+            self.write_message(json.dumps({
+                "channel": "jobs",
+                "job": job,
+                "size": get_job_size(job)
+            }))
 
     def on_close(self):
         SOCKETS.discard(self)
@@ -96,7 +103,7 @@ class WorkHandler(tornado.web.RequestHandler):
                            "commit": commit,
                            "install": True,
                            "reducer": reducer,
-                           "python", python}
+                           "python": python}
             REDIS.set(job_id, json.dumps(description))
 
             # Put the job in the list of jobs.
