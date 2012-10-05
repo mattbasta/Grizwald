@@ -19,3 +19,4 @@ dist
 .emacs.d/site/nxhtml
 .virtualenvs
 .ipython
+settings.py

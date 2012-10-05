@@ -15,9 +15,7 @@
     if(!window.requestAnimationFrame)
       requestAnimationFrame = window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
 
-    function bdist(b1, b2) {
-      return Math.sqrt(Math.pow(b1.x - b2.x, 2) + Math.pow(b1.y - b2.y, 2));
-    }
+    function bdist(b1, b2) {return Math.sqrt(Math.pow(b1.x - b2.x, 2) + Math.pow(b1.y - b2.y, 2));}
 
     function refresh_bdists() {
       var d = [];
@@ -31,10 +29,7 @@
       bdists = d;
     }
 
-    function mirror_vector(s_x, s_y, c_x, c_y) {
-      return [c_x + 2 * s_x,
-              c_y + 2 * s_y];
-    }
+    function mirror_vector(s_x, s_y, c_x, c_y) {return [c_x + 2 * s_x, c_y + 2 * s_y];}
 
     // The garbage-free version of the above function.
     function update_bdists() {
@@ -42,7 +37,7 @@
         for(var j = 0; j < bubbles.length; j++)
           bdists[i][j] = bdist(bubbles[i], bubbles[j]);
     }
-    function bubble_size(size) {return Math.log(size / 10) * 15;}
+    function bubble_size(size) {return Math.log(size / 10 + 10) * 15;}
     function add_bubble(job_id, size) {
       var bubble = {
         x: window.innerWidth / 2,

@@ -80,7 +80,11 @@ class WorkHandler(tornado.web.RequestHandler):
             job_id = create_job_id()
 
             # Push all the input items to the work queue.
+            c = 0
             for job in os.listdir(os.path.join(settings.RESOURCES, resources)):
+                c += 1
+                if c > 500:
+                    break
                 REDIS.lpush("%s::work" % job_id,
                             os.path.join(settings.RESOURCES, resources, job))
 
