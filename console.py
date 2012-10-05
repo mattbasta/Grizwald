@@ -28,7 +28,7 @@ def create_job_id():
     return time.strftime("%M.%H.%d.%m.%Y")
 
 
-def deploy(job_id, repo, commit=None, install=False):
+def deploy(job_id, repo, commit=None, install=False, python_version=2.7):
     print "Deploying %s for job %s" % (repo, job_id)
     repo_dir = os.path.join(JOBS_DIR, job_id)
 
@@ -46,6 +46,9 @@ def deploy(job_id, repo, commit=None, install=False):
     try:
         os.mkdir(repo_dir)
     except OSError:
+        if not os.path.exists(repo_dir):
+            print "Permissions errors while creating repo directory."
+            return
         wait_for_deployment()
         return
 
@@ -61,7 +64,8 @@ def deploy(job_id, repo, commit=None, install=False):
         envdir = os.path.join("jobs", job_id, "venv")
         os.mkdir(envdir)
         print "Creating virtual environment..."
-        _run_command("virtualenv %s" % envdir)
+        _run_command("virtualenv %s -p /usr/bin/python%d" %
+                         (envdir, python_version))
         print "Installing dependencies..."
         _run_command("source %s/bin/activate && "
                      "pip install -r %s/requirements.txt" % (envdir, repo_dir))

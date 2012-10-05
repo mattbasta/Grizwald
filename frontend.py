@@ -70,11 +70,15 @@ class WorkHandler(tornado.web.RequestHandler):
             repo = self.get_argument("repo")
             commit = self.get_argument("commit")
             resources = self.get_argument("resources")
+            reducer = self.get_argument("reducer")
+            python = self.get_argument("pythonversion")
+
             if any(x is None for x in (repo, commit, resources, )):
                 raise ValueError("Values may not be None.")
 
             if resources not in os.listdir(settings.RESOURCES):
-                raise ValueError("Resource does not exist in `/var/res`")
+                raise ValueError(
+                    "Resource does not exist in `%s`" % settings.RESOURCES)
 
             # Create the new job.
             job_id = create_job_id()
@@ -88,7 +92,11 @@ class WorkHandler(tornado.web.RequestHandler):
                 REDIS.lpush("%s::work" % job_id,
                             os.path.join(settings.RESOURCES, resources, job))
 
-            description = {"repo": repo, "commit": commit, "install": True}
+            description = {"repo": repo,
+                           "commit": commit,
+                           "install": True,
+                           "reducer": reducer,
+                           "python", python}
             REDIS.set(job_id, json.dumps(description))
 
             # Put the job in the list of jobs.
@@ -112,4 +120,3 @@ application = tornado.web.Application([
 
 application.listen(8080)
 tornado.ioloop.IOLoop.instance().start()
-
