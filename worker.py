@@ -1,10 +1,11 @@
+import fcntl
 import json
 import multiprocessing
 import os
 
 import redis
 
-from console import deploy, do_work, tear_down
+from console import deploy, do_work, JOBS_DIR, tear_down
 import settings
 
 
@@ -69,6 +70,10 @@ while 1:
            commit=job_description["commit"],
            install=job_description["install"])
 
+    # Lock the deployment so it doesn't get torn down while we're working.
+    lock_file = open(os.path.join(JOBS_DIR, current_job, "__unlocked__.py"))
+    fcntl.lockf(lock_file, fcntl.LOCK_SH)
+
     # Keep grabbing work until there is no more work.
     work = get_work_unit(current_job)
     while work:
@@ -77,6 +82,10 @@ while 1:
 
     # There's no more work so remove it from the list of active jobs.
     connection.srem("jobs", current_job)
+
+    # Release the lock for teardown.
+    fcntl.lockf(lock_file, fcntl.LOCK_UN)
+    lock_file.close()
 
     # Clean up when we're done.
     tear_down(current_job)
