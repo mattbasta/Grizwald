@@ -108,6 +108,8 @@ while 1:
     try:
         red_mod = build_reducer_module(job_description["reducer"])
     except Exception as exc:
+
+        # TODO: Wrap things better so this stuff isn't duped.
         print "Reducer setup failed."
         # If there's a problem setting up the reducer, kill the job
         # immediately.
@@ -117,6 +119,13 @@ while 1:
         connection.set("%s::output" % current_job,
                        "Error: Could not set up reducer. (%s)" % exc)
         connection.expire("%s::output" % current_job, 1800)
+
+        # Release the lock for teardown.
+        fcntl.lockf(lock_file, fcntl.LOCK_UN)
+        lock_file.close()
+
+        # Clean up when we're done.
+        tear_down(current_job)
         continue
 
     red_inst = reducer(red_mod)
