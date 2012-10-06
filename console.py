@@ -76,13 +76,27 @@ def deploy(job_id, repo, commit=None, install=False, python_version=2.7):
 
 def tear_down(job_id):
     print "Tearing down job %s" % job_id
+
     job_dir = os.path.join(JOBS_DIR, job_id)
+    if not os.path.exists(job_dir):
+        return
+
+    lockfile = os.path.join(job_dir, "__unlocked__.py")
+    if not os.path.exists(lockfile):
+        return
+
     try:
-        os.unlink(os.path.join(job_dir, "__unlocked__.py"))
+        os.unlink(lockfile)
     except OSError:
-        print "Already being torn down."
+        print "Waiting for teardown"
     else:
-        shutil.rmtree(job_dir)
+        try:
+            shutil.rmtree(job_dir)
+        except Exception:
+            if os.path.exists(job_dir):
+                print "Permissions error while tearing down job."
+            else:
+                print "Already being torn down."
 
 
 def do_work(job_id, work_unit):

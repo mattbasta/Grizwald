@@ -1,7 +1,9 @@
 import fcntl
+import imp
 import json
 import multiprocessing
 import os
+import urllib2
 
 import redis
 
@@ -24,6 +26,7 @@ connection.sadd("workers", NAME)
 pubsub = connection.pubsub()
 pubsub.subscribe("work")
 
+
 def get_job():
     """Return a job id to begin working on."""
     jobs = connection.smembers("jobs")
@@ -31,6 +34,7 @@ def get_job():
         return
 
     return list(jobs)[0]
+
 
 def get_work_unit(job_id):
     """Return a work unit for the supplied job id."""
@@ -46,6 +50,7 @@ def get_work_unit(job_id):
                      "job": job_id}
     connection.publish("activity", json.dumps(activity_unit))
     return unit
+
 
 # The main work loop.
 while 1:
@@ -74,11 +79,70 @@ while 1:
     lock_file = open(os.path.join(JOBS_DIR, current_job, "__unlocked__.py"))
     fcntl.lockf(lock_file, fcntl.LOCK_SH)
 
+    def build_reducer_module(url):
+        reducer = urllib2.urlopen(job_description["reducer"]).read()
+        redmod = imp.new_module("reducer")
+        exec reducer in redmod.__dict__
+
+        if "reduce" not in redmod.__dict__:
+            raise Exception("No function `reduce` found in reducer.")
+
+        redmod.current_job = current_job
+        redmod.connection = connection
+        if "start" in redmod.__dict__:
+            redmod.start()
+
+        return redmod
+
+    def reducer(mod):
+        reduction = None
+        data = (yield None)
+        while data is not None:
+            reduction = mod.reduce(data, reduction)
+            data = (yield reduction)
+
+    red_mod = build_reducer_module(job_description["reducer"])
+    red_inst = reducer(red_mod)
+
     # Keep grabbing work until there is no more work.
     work = get_work_unit(current_job)
-    while work:
-        do_work(current_job, work)
+    remaining = int(connection.decr("%s::incomplete" % current_job))
+    while work and remaining:
+        # Perform the action on the current job item.
+        output = do_work(current_job, work)
+        # Pass the output of the action to the reducer.
+        red_inst.next(output)
+
+        if remaining > 1:
+            # Decrease the number of incomplete tasks by 1.
+            remaining = int(connection.decr("%s::incomplete" % current_job))
+            if not remaining:
+                break
+
+        # Get another job item from the queue.
         work = get_work_unit(current_job)
+
+    # Push the reduced result to the results set.
+    result = red_inst.next(None)
+    connection.sadd("%s::results" % current_job, result)
+
+    # If we're the last ones running, do the reduction of the final data.
+    if remaining:
+        # Clean up the incomplete counter.
+        connection.delete("%s::incomplete" % current_job)
+
+        # Get the reduced results and push them into the reducer.
+        results = connection.smembers("%s::results" % current_job)
+        red_mod = reducer(red_mod)
+        for result in results:
+            red_mod.next(result)
+
+        # Set the final job output and have it expire in a half hour.
+        connection.set("%s::output" % current_job, red_mod.next(None))
+        connection.expire("%s::output" % current_job, 1800)
+
+        # Delete the un-sub-reduced results.
+        connection.delete("%s::results" % current_job)
 
     # There's no more work so remove it from the list of active jobs.
     connection.srem("jobs", current_job)
@@ -89,4 +153,3 @@ while 1:
 
     # Clean up when we're done.
     tear_down(current_job)
-

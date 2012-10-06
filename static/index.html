@@ -57,11 +57,7 @@
     function drop_bubble(job_id) {
       var new_map = [];
       var bl = bubbles.length;
-      var b = bmap[job_id];
-      for(var i = 0; i < bl; i++)
-        if(bubbles[i] != b)
-          new_map.push(bubbles[i]);
-      bubbles = new_map;
+      bmap[job_id].circ.remove();
       delete bmap[job_id];
 
       refresh_bdists();

@@ -105,6 +105,7 @@ class WorkHandler(tornado.web.RequestHandler):
                            "reducer": reducer,
                            "python": python}
             REDIS.set(job_id, json.dumps(description))
+            REDIS.set("%s::incomplete" % job_id, c)
 
             # Put the job in the list of jobs.
             REDIS.sadd("jobs", job_id)
