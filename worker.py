@@ -129,6 +129,7 @@ while 1:
         continue
 
     red_inst = reducer(red_mod)
+    red_inst.next()
 
     # Keep grabbing work until there is no more work.
     work = get_work_unit(current_job)
@@ -160,12 +161,13 @@ while 1:
 
         # Get the reduced results and push them into the reducer.
         results = connection.smembers("%s::results" % current_job)
-        red_mod = reducer(red_mod)
+        red_inst = reducer(red_mod)
+        red_inst.next()
         for result in results:
-            red_mod.send(result)
+            red_inst.send(result)
 
         # Set the final job output and have it expire in a half hour.
-        connection.set("%s::output" % current_job, red_mod.send(None))
+        connection.set("%s::output" % current_job, red_inst.send(None))
         connection.expire("%s::output" % current_job, 1800)
 
         # Delete the un-sub-reduced results.
