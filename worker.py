@@ -137,7 +137,7 @@ while 1:
         # Perform the action on the current job item.
         output = do_work(current_job, work)
         # Pass the output of the action to the reducer.
-        red_inst.next(output)
+        red_inst.send(output)
 
         if remaining > 1:
             # Decrease the number of incomplete tasks by 1.
@@ -150,7 +150,7 @@ while 1:
         work = get_work_unit(current_job)
 
     # Push the reduced result to the results set.
-    result = red_inst.next(None)
+    result = red_inst.send(None)
     connection.sadd("%s::results" % current_job, result)
 
     # If we're the last ones running, do the reduction of the final data.
@@ -162,10 +162,10 @@ while 1:
         results = connection.smembers("%s::results" % current_job)
         red_mod = reducer(red_mod)
         for result in results:
-            red_mod.next(result)
+            red_mod.send(result)
 
         # Set the final job output and have it expire in a half hour.
-        connection.set("%s::output" % current_job, red_mod.next(None))
+        connection.set("%s::output" % current_job, red_mod.send(None))
         connection.expire("%s::output" % current_job, 1800)
 
         # Delete the un-sub-reduced results.
