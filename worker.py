@@ -101,12 +101,24 @@ while 1:
             reduction = mod.reduce(data, reduction)
             data = (yield reduction)
 
-    red_mod = build_reducer_module(job_description["reducer"])
+    try:
+        red_mod = build_reducer_module(job_description["reducer"])
+    except Exception as exc:
+        # If there's a problem setting up the reducer, kill the job
+        # immediately.
+        connection.delete("%s::work" % current_job)
+        connection.delete("%s::incomplete" % current_job)
+        connection.srem("jobs", current_job)
+        connection.set("%s::output" % current_job,
+                       "Error: Could not set up reducer. (%s)" % exc)
+        connection.expire("%s::output" % current_job, 1800)
+        continue
+
     red_inst = reducer(red_mod)
 
     # Keep grabbing work until there is no more work.
     work = get_work_unit(current_job)
-    remaining = int(connection.decr("%s::incomplete" % current_job))
+    remaining = int(connection.decr("%s::incomplete" % current_job) or 0)
     while work and remaining:
         # Perform the action on the current job item.
         output = do_work(current_job, work)
@@ -115,7 +127,8 @@ while 1:
 
         if remaining > 1:
             # Decrease the number of incomplete tasks by 1.
-            remaining = int(connection.decr("%s::incomplete" % current_job))
+            remaining = int(connection.decr("%s::incomplete" %
+                                                current_job) or 0)
             if not remaining:
                 break
 
