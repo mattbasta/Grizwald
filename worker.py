@@ -73,15 +73,18 @@ while 1:
     # Deploy the job.
     deploy(job_id=current_job, repo=job_description["repo"],
            commit=job_description["commit"],
-           install=job_description["install"])
+           install=job_description["install"],
+           python_version=job_description["python"])
 
     # Lock the deployment so it doesn't get torn down while we're working.
     lock_file = open(os.path.join(JOBS_DIR, current_job, "__unlocked__.py"))
     fcntl.lockf(lock_file, fcntl.LOCK_SH)
 
     def build_reducer_module(url):
+        print "Downloading reducer..."
         reducer = urllib2.urlopen(job_description["reducer"]).read()
         redmod = imp.new_module("reducer")
+        print "Instantiating reducer..."
         exec reducer in redmod.__dict__
 
         if "reduce" not in redmod.__dict__:
@@ -90,6 +93,7 @@ while 1:
         redmod.current_job = current_job
         redmod.connection = connection
         if "start" in redmod.__dict__:
+
             redmod.start()
 
         return redmod
@@ -104,6 +108,7 @@ while 1:
     try:
         red_mod = build_reducer_module(job_description["reducer"])
     except Exception as exc:
+        print "Reducer setup failed."
         # If there's a problem setting up the reducer, kill the job
         # immediately.
         connection.delete("%s::work" % current_job)

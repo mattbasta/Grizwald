@@ -64,7 +64,7 @@ def deploy(job_id, repo, commit=None, install=False, python_version=2.7):
         envdir = os.path.join("jobs", job_id, "venv")
         os.mkdir(envdir)
         print "Creating virtual environment..."
-        _run_command("virtualenv %s -p /usr/bin/python%d" %
+        _run_command("virtualenv %s -p /usr/bin/python%s" %
                          (envdir, python_version))
         print "Installing dependencies..."
         _run_command("source %s/bin/activate && "

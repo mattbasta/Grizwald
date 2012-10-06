@@ -80,6 +80,9 @@ class WorkHandler(tornado.web.RequestHandler):
             reducer = self.get_argument("reducer")
             python = self.get_argument("pythonversion")
 
+            if python not in ("2.7", "2.6"):
+                raise ValueError("Invalid Python version selected.")
+
             if any(x is None for x in (repo, commit, resources, )):
                 raise ValueError("Values may not be None.")
 
