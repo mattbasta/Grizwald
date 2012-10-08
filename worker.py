@@ -104,6 +104,7 @@ while 1:
         while data is not None:
             reduction = mod.reduce(data, reduction)
             data = (yield reduction)
+        yield reduction
 
     try:
         red_mod = build_reducer_module(job_description["reducer"])
