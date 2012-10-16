@@ -80,9 +80,44 @@ while 1:
     lock_file = open(os.path.join(JOBS_DIR, current_job, "__unlocked__.py"))
     fcntl.lockf(lock_file, fcntl.LOCK_SH)
 
-    def build_reducer_module(url):
-        print "Downloading reducer..."
-        reducer = urllib2.urlopen(job_description["reducer"]).read()
+    def finish_job(remaining=0, reduce_=False):
+        if remaining:
+            # Clean up the incomplete counter.
+            connection.delete("%s::incomplete" % current_job)
+
+            if reduce_:
+                # Get the reduced results and push them into the reducer.
+                results = connection.smembers("%s::results" % current_job)
+                red_inst = reducer(red_mod)
+                red_inst.next()
+                for result in results:
+                    red_inst.send(result)
+
+                # Set the final job output and have it expire in a half hour.
+                connection.set("%s::output" % current_job, red_inst.send(None))
+                print "Output reduced to %s" % "%s::output" % current_job
+
+            # Delete the un-sub-reduced results.
+            connection.delete("%s::results" % current_job)
+
+        connection.expire("%s::output" % current_job, 1800)
+
+        # There's no more work so remove it from the list of active jobs.
+        connection.srem("jobs", current_job)
+
+        # Release the lock for teardown.
+        fcntl.lockf(lock_file, fcntl.LOCK_UN)
+        lock_file.close()
+
+    def build_reducer_module(url, job):
+        # If the reducer is in the repo, just fetch it.
+        if url.startswith("/"):
+            print "Fetching reducer..."
+            with open(os.path.join(JOBS_DIR, job, url)) as redfile:
+                reducer = redfile.read()
+        else:
+            print "Downloading reducer..."
+            reducer = urllib2.urlopen(url).read()
         redmod = imp.new_module("reducer")
         print "Instantiating reducer..."
         exec reducer in redmod.__dict__
@@ -90,10 +125,9 @@ while 1:
         if "reduce" not in redmod.__dict__:
             raise Exception("No function `reduce` found in reducer.")
 
-        redmod.current_job = current_job
+        redmod.current_job = job
         redmod.connection = connection
-        if "start" in redmod.__dict__:
-
+        if callable(redmod.__dict__.get("start")):
             redmod.start()
 
         return redmod
@@ -106,26 +140,23 @@ while 1:
             data = (yield reduction)
         yield reduction
 
+    # Construct the reducer module from its source.
     try:
-        red_mod = build_reducer_module(job_description["reducer"])
+        red_mod = build_reducer_module(job_description["reducer"],
+                                       job=current_job)
+        if not red_mod:
+            raise Exception("Reducer was not loaded.")
     except Exception as exc:
-
-        # TODO: Wrap things better so this stuff isn't duped.
         print "Reducer setup failed."
         # If there's a problem setting up the reducer, kill the job
         # immediately.
         connection.delete("%s::work" % current_job)
-        connection.delete("%s::incomplete" % current_job)
-        connection.srem("jobs", current_job)
         connection.set("%s::output" % current_job,
                        "Error: Could not set up reducer. (%s)" % exc)
-        connection.expire("%s::output" % current_job, 1800)
-
-        # Release the lock for teardown.
-        fcntl.lockf(lock_file, fcntl.LOCK_UN)
-        lock_file.close()
+        print "Error posted to %s" % "%s::output" % current_job
 
         # Clean up when we're done.
+        finish_job(remaining=True)  # remaining means we'll force cleanup.
         tear_down(current_job)
         continue
 
@@ -143,8 +174,8 @@ while 1:
 
         if remaining > 1:
             # Decrease the number of incomplete tasks by 1.
-            remaining = int(connection.decr("%s::incomplete" %
-                                                current_job) or 0)
+            remaining = int(
+                connection.decr("%s::incomplete" % current_job) or 0)
             if not remaining:
                 break
 
@@ -155,31 +186,6 @@ while 1:
     result = red_inst.send(None)
     connection.sadd("%s::results" % current_job, result)
 
-    # If we're the last ones running, do the reduction of the final data.
-    if remaining:
-        # Clean up the incomplete counter.
-        connection.delete("%s::incomplete" % current_job)
-
-        # Get the reduced results and push them into the reducer.
-        results = connection.smembers("%s::results" % current_job)
-        red_inst = reducer(red_mod)
-        red_inst.next()
-        for result in results:
-            red_inst.send(result)
-
-        # Set the final job output and have it expire in a half hour.
-        connection.set("%s::output" % current_job, red_inst.send(None))
-        connection.expire("%s::output" % current_job, 1800)
-
-        # Delete the un-sub-reduced results.
-        connection.delete("%s::results" % current_job)
-
-    # There's no more work so remove it from the list of active jobs.
-    connection.srem("jobs", current_job)
-
-    # Release the lock for teardown.
-    fcntl.lockf(lock_file, fcntl.LOCK_UN)
-    lock_file.close()
-
     # Clean up when we're done.
+    finish_job(remaining=remaining, reduce_=True)
     tear_down(current_job)
