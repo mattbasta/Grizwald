@@ -4,6 +4,7 @@ Options:
   -c --commit   The commit ID to set the repository to.
   --install     Flag to install the repo's requirements.txt
 """
+import logging
 import os
 import shutil
 import subprocess
@@ -13,11 +14,13 @@ import time
 from docopt import docopt
 
 
-JOBS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stage")
+JOBS_STAGE = "stage"
+JOBS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        JOBS_STAGE)
 
 
 def _run_command(cmd, dir=None):
-    print cmd
+    logging.debug(">>> " + cmd)
     pipe = subprocess.Popen(cmd, shell=True, cwd=dir, stdout=subprocess.PIPE,
                             executable="/bin/bash")
     data, stderr_data = pipe.communicate()
@@ -39,7 +42,7 @@ def deploy(job_id, repo, commit=None, install=False, python_version=2.7):
     # If the repo was already set up, great!
     if os.path.exists(repo_dir):
         wait_for_deployment()
-        print "Already set up!"
+        logging.info("Job already configured")
         return
 
     # Create the directory to run the job in.
@@ -47,31 +50,32 @@ def deploy(job_id, repo, commit=None, install=False, python_version=2.7):
         os.mkdir(repo_dir)
     except OSError:
         if not os.path.exists(repo_dir):
-            print "Permissions errors while creating repo directory."
+            logging.error("Permissions error when creating repo directory.")
             return
         wait_for_deployment()
         return
 
     # Clone the repo into the directory.
-    print "Cloning git repo..."
+    logging.debug("Cloning git repo")
     _run_command("git clone %s %s" % (repo, job_id), JOBS_DIR)
     if commit is not None:
-        print "Resetting to commit..."
+        logging.debug("Resetting to commit")
         _run_command("git reset --hard %s" % commit, repo_dir)
 
     # Install the prereqs.
     if install:
-        envdir = os.path.join("stage", job_id, "venv")
+        envdir = os.path.join(JOBS_STAGE, job_id, "venv")
         os.mkdir(envdir)
-        print "Creating virtual environment..."
+
+        logging.debug("Creating virtualenv")
         _run_command("virtualenv %s -p /usr/bin/python%s" %
                          (envdir, python_version))
-        print "Installing dependencies..."
+
+        logging.debug("Installing dependencies")
         _run_command("source %s/bin/activate && "
                      "pip install -r %s/requirements.txt" % (envdir, repo_dir))
 
-    _run_command("touch __unlocked__.py", dir=repo_dir)
-    print "Deployment complete."
+    logging.info("Completed deployment")
 
 
 def tear_down(job_id):
@@ -82,21 +86,28 @@ def tear_down(job_id):
         return
 
     lockfile = os.path.join(job_dir, "__unlocked__.py")
+
+    # If the lockfile doesn't exist, it means another build is still setting
+    # up with the same environment. They can tear it down when they're ready.
     if not os.path.exists(lockfile):
         return
+    else:
+        # Give the other processes some time to acquire a lock, if they haven't
+        # already done so.
+        time.sleep(0.25)
 
     try:
         os.unlink(lockfile)
     except OSError:
-        print "Waiting for teardown"
+        logging.info("Worker deferring teardown to another worker.")
     else:
         try:
             shutil.rmtree(job_dir)
         except Exception:
             if os.path.exists(job_dir):
-                print "Permissions error while tearing down job."
+                logging.error("Permissions error during teardown")
             else:
-                print "Already being torn down."
+                logging.debug("Teardown already in process, aborting")
 
 
 def run_in_venv(job_id, command):
@@ -120,4 +131,3 @@ def main(*arguments, **kwargs):
 
 if __name__ == "__main__":
     main(**docopt(__doc__))
-

@@ -59,7 +59,8 @@ class JobLock(object):
 
     def __enter__(self):
         self.lock_file = open(os.path.join(console.JOBS_DIR, self.job.id_,
-                                           "__unlocked__.py"))
+                                           "__unlocked__.py"),
+                              mode="w")
         fcntl.lockf(self.lock_file, fcntl.LOCK_SH)
 
     def __exit__(self, type, value, traceback):
