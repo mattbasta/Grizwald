@@ -8,7 +8,7 @@ import urllib2
 import redis
 
 from console import deploy, do_work, JOBS_DIR, tear_down
-from jobs import TaskJob
+from jobs import DaemonJob, TaskJob
 import settings
 
 
@@ -37,7 +37,7 @@ def get_job():
     return list(jobs)[0]
 
 
-job_types = {"taskjob": TaskJob}
+job_types = {"taskjob": TaskJob, "daemonjob": DaemonJob}
 
 # The main work loop.
 while 1:

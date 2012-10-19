@@ -41,7 +41,7 @@ class Job(object):
 
     def output(self, data):
         self.connection.set("%s::output" % self.id_, data)
-        self.connection.expire("%s::output" % current_job, 1800)
+        self.connection.expire("%s::output" % self.id_, 1800)
 
     def run_job(self):
         raise NotImplementedError("`run_job` is unimplemented for stubbed jobs.")

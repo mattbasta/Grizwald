@@ -99,13 +99,16 @@ def tear_down(job_id):
                 print "Already being torn down."
 
 
-def do_work(job_id, work_unit):
-    print "Running work unit %s" % work_unit
+def run_in_venv(job_id, command):
     jobdir = os.path.join(JOBS_DIR, job_id)
     envdir = os.path.join(jobdir, "venv")
-    return _run_command("source %s/bin/activate && "
-                        "python griz.py %s" % (envdir, work_unit),
+    return _run_command("source %s/bin/activate && %s" % (envdir, command),
                         dir=jobdir)
+
+
+def do_work(job_id, work_unit):
+    print "Running work unit %s" % work_unit
+    return run_in_venv(job_id, "python griz.py %s" % work_unit)
 
 
 def main(*arguments, **kwargs):
