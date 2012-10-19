@@ -57,9 +57,9 @@ class JobLock(object):
         self.lockfile = None
 
     def __enter__(self):
-        self.lock_file = os.open(os.path.join(console.JOBS_DIR, self.job.id_,
-                                              "__unlocked__.py"),
-                                 os.O_SHLOCK | os.O_CREAT)
+        self.lockfile = os.open(os.path.join(console.JOBS_DIR, self.job.id_,
+                                             "__unlocked__.py"),
+                                os.O_SHLOCK | os.O_CREAT)
 
     def __exit__(self, type, value, traceback):
         os.close(self.lockfile)
