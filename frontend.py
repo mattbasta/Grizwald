@@ -88,14 +88,13 @@ class WorkHandler(tornado.web.RequestHandler):
             if any(x is None for x in (repo, commit, resources, )):
                 raise ValueError("Values may not be None.")
 
-            if resources not in os.listdir(settings.RESOURCES):
-                raise ValueError(
-                    "Resource does not exist in `%s`" % settings.RESOURCES)
-
             # Create the new job.
             job_id = create_job_id()
 
             if job_type == "taskjob":
+                if resources not in os.listdir(settings.RESOURCES):
+                    raise ValueError(
+                        "Resource does not exist in `%s`" % settings.RESOURCES)
                 # Push all the input items to the work queue.
                 c = 0
                 for job in os.listdir(
@@ -121,7 +120,8 @@ class WorkHandler(tornado.web.RequestHandler):
                 description["reducer"] = reducer
 
             REDIS.set(job_id, json.dumps(description))
-            REDIS.set("%s::incomplete" % job_id, c)
+            if job_type == "taskjob":
+                REDIS.set("%s::incomplete" % job_id, c)
 
             # Put the job in the list of jobs.
             REDIS.sadd("jobs", job_id)

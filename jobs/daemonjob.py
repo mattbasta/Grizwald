@@ -57,8 +57,9 @@ class DaemonJob(Job):
 
     def wsgi(self, command):
         port = random.randrange(9000, 9999)
-        console.run_in_venv("gunicorn -w 4 -b %s %s" %
-                            ("%s:%d" % (MY_ID, port), command))
+        console.run_in_venv(self.id_,
+                            "gunicorn -w 4 -b %s %s" %
+                                ("%s:%d" % (MY_ID, port), command))
 
     def proc(self, command):
-        console.run_in_venv(command)
+        console.run_in_venv(self.id_, command)
