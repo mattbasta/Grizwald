@@ -64,14 +64,14 @@ while 1:
 
     # Instantiate the job.
     job_inst = job_inst(current_job, job_description, connection, NAME)
-    job_inst.deploy()
 
     # Prevent the job from being cleaned up while we're using it.
     with job_inst.lock():
+        job_inst.deploy()
         try:
             job_inst.run_job()
         except Exception as exc:
-            logging.error("Job finished prematurely due to error.")
-            print exc
+            logging.error("Job finished prematurely due to error. (%s)" %
+                              exc.message)
 
     job_inst.cleanup()

@@ -1,5 +1,4 @@
 import json
-import os
 
 import console
 
@@ -21,26 +20,40 @@ class Job(object):
                        install=self.description["install"],
                        python_version=self.description["python"])
 
+        self._action("deploy")
+
     def cancel(self):
         self.connection.delete("%s::work" % self.id_)
         self.connection.delete("%s::incomplete" % self.id_)
 
+        self._action("cancel")
+
     def cleanup(self):
         self.connection.srem("jobs", self.id_)
-        console.tear_down(self.id_)
+
+        lock_id = "%s::%s::lockfile" % (self.id_, self.worker)
+        lock = int(self.connection.get(lock_id) or 0)
+        if not lock:
+            # Delete the environment.
+            console.tear_down(self.id_)
+            # Delete the lock key.
+            self.connection.delete(lock_id)
+
         self._action("cleanup")
 
     def lock(self):
         return JobLock(self)
 
+    def output(self, data):
+        self.connection.set("%s::output" % self.id_, data)
+        self.connection.expire("%s::output" % self.id_, 1800)
+
+        self._action("output")
+
     def _action(self, type_, **kwargs):
         action_unit = {"type": type_, "worker": self.worker, "job": self.id_}
         action_unit.update(kwargs)
         self.connection.publish("activity", json.dumps(action_unit))
-
-    def output(self, data):
-        self.connection.set("%s::output" % self.id_, data)
-        self.connection.expire("%s::output" % self.id_, 1800)
 
     def run_job(self):
         raise NotImplementedError("`run_job` is unimplemented for stubbed jobs.")
@@ -54,12 +67,10 @@ class JobLock(object):
 
     def __init__(self, job):
         self.job = job
-        self.lockfile = None
+        self.lock = "%s::%s::lockfile" % (self.job.id_, self.job.worker)
 
     def __enter__(self):
-        self.lockfile = os.open(os.path.join(console.JOBS_DIR, self.job.id_,
-                                             "__unlocked__.py"),
-                                os.O_SHLOCK | os.O_CREAT)
+        self.job.connection.incr(self.lock)
 
     def __exit__(self, type, value, traceback):
-        os.close(self.lockfile)
+        self.job.connection.decr(self.lock)
