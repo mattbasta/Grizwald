@@ -1,4 +1,4 @@
 #!/bin/sh
 
-rm -rf jobs/*
+rm -rf stage/*
 

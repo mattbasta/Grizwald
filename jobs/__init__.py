@@ -1,2 +1,2 @@
-from job import job
+from job import Job
 from taskjob import TaskJob

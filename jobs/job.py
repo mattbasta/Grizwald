@@ -1,6 +1,8 @@
 import fcntl
+import json
+import os
 
-from .. import console
+import console
 
 
 class Job(object):
@@ -60,6 +62,6 @@ class JobLock(object):
                                            "__unlocked__.py"))
         fcntl.lockf(self.lock_file, fcntl.LOCK_SH)
 
-    def __exit__(self):
+    def __exit__(self, type, value, traceback):
         fcntl.lockf(self.lock_file, fcntl.LOCK_UN)
         self.lock_file.close()

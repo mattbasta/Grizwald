@@ -1,5 +1,6 @@
 import imp
 import json
+import logging
 import multiprocessing
 import os
 import urllib2
@@ -71,5 +72,6 @@ while 1:
             job_inst.run_job()
         except Exception as exc:
             logging.error("Job finished prematurely due to error.")
+            print exc
 
     job_inst.cleanup()

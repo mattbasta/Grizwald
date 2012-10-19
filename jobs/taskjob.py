@@ -1,7 +1,7 @@
 import logging
 
-from .. import console
-from .. import reducer
+import console
+import reducer
 from job import Job
 
 

@@ -13,7 +13,7 @@ import time
 from docopt import docopt
 
 
-JOBS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jobs")
+JOBS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stage")
 
 
 def _run_command(cmd, dir=None):
@@ -61,7 +61,7 @@ def deploy(job_id, repo, commit=None, install=False, python_version=2.7):
 
     # Install the prereqs.
     if install:
-        envdir = os.path.join("jobs", job_id, "venv")
+        envdir = os.path.join("stage", job_id, "venv")
         os.mkdir(envdir)
         print "Creating virtual environment..."
         _run_command("virtualenv %s -p /usr/bin/python%s" %
