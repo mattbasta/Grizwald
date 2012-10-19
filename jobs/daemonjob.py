@@ -46,7 +46,7 @@ class DaemonJob(Job):
 
         try:
             if process_type == "wsgi":
-                console.run_in_venv("pip install gunicorn")
+                console.run_in_venv(self.id_, "pip install gunicorn")
                 self.wsgi(command)
             else:
                 self.proc(command)
