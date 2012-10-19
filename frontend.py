@@ -102,11 +102,14 @@ class WorkHandler(tornado.web.RequestHandler):
                 REDIS.lpush("%s::work" % job_id,
                             os.path.join(settings.RESOURCES, resources, job))
 
-            description = {"repo": repo,
-                           "commit": commit,
-                           "install": True,
-                           "reducer": reducer,
-                           "python": python}
+            description = {
+                "type": "taskjob",
+                "repo": repo,
+                "commit": commit,
+                "install": True,
+                "reducer": reducer,
+                "python": python,
+            }
             REDIS.set(job_id, json.dumps(description))
             REDIS.set("%s::incomplete" % job_id, c)
 
