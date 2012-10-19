@@ -1,4 +1,3 @@
-import fcntl
 import json
 import os
 
@@ -58,11 +57,9 @@ class JobLock(object):
         self.lockfile = None
 
     def __enter__(self):
-        self.lock_file = open(os.path.join(console.JOBS_DIR, self.job.id_,
-                                           "__unlocked__.py"),
-                              mode="w")
-        fcntl.lockf(self.lock_file, fcntl.LOCK_SH)
+        self.lock_file = os.open(os.path.join(console.JOBS_DIR, self.job.id_,
+                                              "__unlocked__.py"),
+                                 os.O_SHLOCK | os.O_CREAT)
 
     def __exit__(self, type, value, traceback):
-        fcntl.lockf(self.lock_file, fcntl.LOCK_UN)
-        self.lock_file.close()
+        os.close(self.lockfile)
