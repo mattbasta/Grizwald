@@ -79,6 +79,8 @@ class WorkHandler(tornado.web.RequestHandler):
             resources = self.get_argument("resources")
             reducer = self.get_argument("reducer")
             python = self.get_argument("pythonversion")
+            job_type = self.get_argument("job_type")
+            procfile = self.get_argument("procfile")
 
             if python not in ("2.7", "2.6"):
                 raise ValueError("Invalid Python version selected.")
@@ -93,23 +95,31 @@ class WorkHandler(tornado.web.RequestHandler):
             # Create the new job.
             job_id = create_job_id()
 
-            # Push all the input items to the work queue.
-            c = 0
-            for job in os.listdir(os.path.join(settings.RESOURCES, resources)):
-                c += 1
-                if c > 500:
-                    break
-                REDIS.lpush("%s::work" % job_id,
-                            os.path.join(settings.RESOURCES, resources, job))
+            if job_type == "taskjob":
+                # Push all the input items to the work queue.
+                c = 0
+                for job in os.listdir(
+                        os.path.join(settings.RESOURCES, resources)):
+                    c += 1
+                    if c > 500:
+                        break
+                    REDIS.lpush("%s::work" % job_id,
+                                os.path.join(settings.RESOURCES, resources,
+                                             job))
+            elif job_type == "daemonjob":
+                for line in procfile.split("\n"):
+                    REDIS.lpush("%s::work" % job_id, line)
 
             description = {
-                "type": "taskjob",
+                "type": job_type,
                 "repo": repo,
                 "commit": commit,
                 "install": True,
-                "reducer": reducer,
                 "python": python,
             }
+            if job_type == "taskjob":
+                description["reducer"] = reducer
+
             REDIS.set(job_id, json.dumps(description))
             REDIS.set("%s::incomplete" % job_id, c)
 
