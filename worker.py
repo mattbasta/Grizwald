@@ -9,17 +9,31 @@ from jobs import DaemonJob, TaskJob
 import settings
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG,
+                    datefmt='%m-%d %H:%M',
+                    format="%(asctime)-15s %(levelname)-8s %(worker)-20s "
+                           "%(job)-16s %(message)s")
+
+class ContextFilter(logging.Filter):
+    def filter(self, record):
+        if not getattr(record, "worker", None):
+            record.worker = "<unknown>"
+        if not getattr(record, "job", None):
+            record.worker = "<none>"
+        return True
+
+logging.addFilter(ContextFilter())
 
 CORES = multiprocessing.cpu_count()
 NAME = settings.WORKER_NAME
 
+# Start all the forks.
 for i in range(CORES - 1):
     if os.fork() == 0:
         NAME += ".%d" % os.getpid()
         break
 
-print "%s was started." % NAME
+logging.info("Worker was started.", worker=NAME)
 
 connection = redis.StrictRedis(host=settings.HOST, port=6379)
 pubsub = connection.pubsub()
@@ -57,7 +71,8 @@ while 1:
     job_type = job_description.get("type", "unknown")
     job_inst = job_types.get(job_type)
     if not job_inst:
-        raise Exception("Unknown Job Type: worker out of date.")
+        raise Exception("Unknown Job Type: worker out of date.\n"
+                        "Job type: %s\nJob: %s" % (job_type, current_job))
 
     # Instantiate the job.
     job_inst = job_inst(current_job, job_description, connection, NAME)
@@ -69,6 +84,7 @@ while 1:
             job_inst.run_job()
         except Exception as exc:
             logging.error("Job finished prematurely due to error. (%s)" %
-                              exc.message)
+                              exc.message,
+                          worker=NAME, job=current_job)
 
     job_inst.cleanup()

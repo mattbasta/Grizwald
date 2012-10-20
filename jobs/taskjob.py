@@ -68,7 +68,7 @@ class TaskJob(Job):
                 red.send(output)
             except Exception:
                 self.cancel()
-                logging.error("Reducer raised exception.")
+                self.log.error("Reducer raised exception.")
                 self.output("Error: Reduction exception. (%s)" % exc.message)
                 raise
 
@@ -87,13 +87,13 @@ class TaskJob(Job):
             result = red.send(None)
         except Exception:
             self.cancel()
-            logging.error("Reducer raised exception on final pass.")
+            self.log.error("Reducer raised exception on final pass.")
             self.output("Error: Reduction exception. (%s)" % exc.message)
             raise
         else:
             self.connection.sadd("%s::results" % self.id_, result)
 
-        logging.info("Worker completed job.")
+        self.log.info("Worker completed job.")
 
         workers_left = self.connection.decr("%s::workers" % self.id_)
         if not workers_left:
@@ -116,10 +116,10 @@ class TaskJob(Job):
                 result = red.send(None)
             except Exception:
                 self.cancel()
-                logging.error("Reducer raised exception on final reduction.")
+                self.log.error("Reducer raised exception on final reduction.")
                 self.output("Error: Reduction exception. (%s)" % exc.message)
                 raise
             else:
                 self.output(result)
 
-            logging.info("Job reduction completed.")
+            self.log.info("Job reduction completed.")

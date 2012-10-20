@@ -30,7 +30,7 @@ class DaemonJob(Job):
 
     def run_job(self):
 
-        duration = int(self.description.get("duration", DEFAULT_DURATION))
+        self.duration = int(self.description.get("duration", DEFAULT_DURATION))
 
         # Keep grabbing work until there is no more work.
         process_type, command = self.get_task()
@@ -43,7 +43,7 @@ class DaemonJob(Job):
             logging.info("Shutting down process.")
             raise TimeoutException()
         signal.signal(signal.SIGALRM, handler)
-        signal.alarm(duration)
+        signal.alarm(self.duration)
 
         try:
             if process_type == "wsgi":
@@ -56,9 +56,9 @@ class DaemonJob(Job):
 
         signal.alarm(0)
 
-    def output(self, data, duration=3600):
+    def output(self, data):
         self.connection.append("%s::output" % self.id_, "%s\n" % data)
-        self.connection.expire("%s::output" % self.id_, DEFAULT_DURATION)
+        self.connection.expire("%s::output" % self.id_, self.duration)
 
         self._action("output")
 

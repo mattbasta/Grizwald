@@ -16,9 +16,6 @@ class Job(object):
         self.incomplete = True
 
         self.logger = logging.getLogger("grizwald.job")
-        self.logger.basicConfig(
-            format="%(asctime)-15s %(levelname)-8s %(worker)-20s %(job)-16s "
-                   "%(message)s")
         self.log = logging.LoggerAdapter(self.logger, {"worker": self.worker,
                                                        "job": self.id_})
 
