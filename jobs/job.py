@@ -92,7 +92,7 @@ class Job(object):
         if not lock:
             self.log.debug("Cleanup lock acquired")
             # Delete the environment.
-            self._tear_down(self.id_)
+            self._tear_down()
             # Delete the lock key.
             self.connection.delete(self.lock_id)
 
