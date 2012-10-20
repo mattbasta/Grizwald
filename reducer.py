@@ -1,5 +1,6 @@
 import imp
 import logging
+import urllib2
 
 
 def build_reducer_module(url, job, connection):

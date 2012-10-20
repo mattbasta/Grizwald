@@ -85,29 +85,14 @@ def tear_down(job_id):
     if not os.path.exists(job_dir):
         return
 
-    lockfile = os.path.join(job_dir, "__unlocked__.py")
-
-    # If the lockfile doesn't exist, it means another build is still setting
-    # up with the same environment. They can tear it down when they're ready.
-    if not os.path.exists(lockfile):
-        return
-    else:
-        # Give the other processes some time to acquire a lock, if they haven't
-        # already done so.
-        time.sleep(0.25)
-
     try:
-        os.unlink(lockfile)
-    except OSError:
-        logging.info("Worker deferring teardown to another worker.")
-    else:
-        try:
-            shutil.rmtree(job_dir)
-        except Exception:
-            if os.path.exists(job_dir):
-                logging.error("Permissions error during teardown")
-            else:
-                logging.debug("Teardown already in process, aborting")
+        shutil.rmtree(job_dir)
+        logging.info("Teardown completed successfully")
+    except Exception:
+        if os.path.exists(job_dir):
+            logging.error("Permissions error during teardown")
+        else:
+            logging.debug("Teardown already in process, aborting")
 
 
 def run_in_venv(job_id, command):

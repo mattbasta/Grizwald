@@ -1,16 +1,15 @@
-import imp
 import json
 import logging
 import multiprocessing
 import os
-import urllib2
 
 import redis
 
-from console import deploy, do_work, JOBS_DIR, tear_down
 from jobs import DaemonJob, TaskJob
 import settings
 
+
+logging.basicConfig(level=logging.DEBUG)
 
 CORES = multiprocessing.cpu_count()
 NAME = settings.WORKER_NAME
@@ -23,7 +22,6 @@ for i in range(CORES - 1):
 print "%s was started." % NAME
 
 connection = redis.StrictRedis(host=settings.HOST, port=6379)
-connection.sadd("workers", NAME)
 pubsub = connection.pubsub()
 pubsub.subscribe("work")
 

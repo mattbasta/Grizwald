@@ -11,6 +11,7 @@ class TimeoutException(Exception):
     pass
 
 
+DEFAULT_DURATION = 3600
 MY_IP = socket.gethostbyname(socket.gethostname())
 
 class DaemonJob(Job):
@@ -29,7 +30,7 @@ class DaemonJob(Job):
 
     def run_job(self):
 
-        duration = int(self.description.get("duration", 3600))
+        duration = int(self.description.get("duration", DEFAULT_DURATION))
 
         # Keep grabbing work until there is no more work.
         process_type, command = self.get_task()
@@ -55,11 +56,19 @@ class DaemonJob(Job):
 
         signal.alarm(0)
 
+    def output(self, data, duration=3600):
+        self.connection.append("%s::output" % self.id_, "%s\n" % data)
+        self.connection.expire("%s::output" % self.id_, DEFAULT_DURATION)
+
+        self._action("output")
+
     def wsgi(self, command):
         port = random.randrange(9000, 9999)
+        host = "%s:%d" % (MY_IP, port)
+        self.output("wsgi %s @@ %s" % (command, host))
         console.run_in_venv(self.id_,
-                            "gunicorn -w 4 -b %s %s" %
-                                ("%s:%d" % (MY_IP, port), command))
+                            "gunicorn -w 4 -b %s %s" % (host, command))
 
     def proc(self, command):
+        self.output("proc %s @@ %s" % (command, MY_IP))
         console.run_in_venv(self.id_, command)
