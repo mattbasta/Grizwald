@@ -5,7 +5,7 @@ WORKER = None
 
 logging.basicConfig(level=logging.DEBUG,
                     datefmt='%m-%d %H:%M',
-                    format="%(asctime)-15s %(levelname)-8s %(worker)-20s "
+                    format="%(asctime)-12s %(levelname)-8s %(worker)-20s "
                            "%(job)-16s %(message)s")
 
 class ContextFilter(logging.Filter):
