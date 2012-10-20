@@ -1,5 +1,3 @@
-import logging
-
 import console
 import reducer
 from job import Job

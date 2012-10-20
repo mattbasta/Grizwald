@@ -1,5 +1,5 @@
 import imp
-import logging
+import loghelper
 import urllib2
 
 

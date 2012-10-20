@@ -4,7 +4,7 @@ Options:
   -c --commit   The commit ID to set the repository to.
   --install     Flag to install the repo's requirements.txt
 """
-import logging
+import loghelper as logging
 import os
 import shutil
 import subprocess
@@ -32,7 +32,7 @@ def create_job_id():
 
 
 def deploy(job_id, repo, commit=None, install=False, python_version=2.7):
-    logging.info("Deploying (%s)" % repo, job=job_id)
+    logging.info("Deploying (%s)" % repo)
     repo_dir = os.path.join(JOBS_DIR, job_id)
 
     def wait_for_deployment():
@@ -79,7 +79,7 @@ def deploy(job_id, repo, commit=None, install=False, python_version=2.7):
 
 
 def tear_down(job_id):
-    logging.info("Tearing down environment", job=job_id)
+    logging.info("Tearing down environment")
 
     job_dir = os.path.join(JOBS_DIR, job_id)
     if not os.path.exists(job_dir):
@@ -87,12 +87,12 @@ def tear_down(job_id):
 
     try:
         shutil.rmtree(job_dir)
-        logging.info("Teardown completed successfully", job=job_id)
+        logging.info("Teardown completed successfully")
     except Exception:
         if os.path.exists(job_dir):
-            logging.error("Permissions error during teardown", job=job_id)
+            logging.error("Permissions error during teardown")
         else:
-            logging.debug("Teardown already in process, aborting", job=job_id)
+            logging.debug("Teardown already in process, aborting")
 
 
 def run_in_venv(job_id, command):
@@ -103,7 +103,7 @@ def run_in_venv(job_id, command):
 
 
 def do_work(job_id, work_unit):
-    logging.info("Running work unit (%s)" % work_unit, job=job_id)
+    logging.info("Running work unit (%s)" % work_unit)
     return run_in_venv(job_id, "python griz.py %s" % work_unit)
 
 

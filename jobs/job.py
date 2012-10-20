@@ -2,6 +2,7 @@ import json
 import logging
 
 import console
+import settings
 
 
 class Job(object):
@@ -77,7 +78,7 @@ class JobLock(object):
 
     def __init__(self, job):
         self.job = job
-        self.lock = "%s::%s::lockfile" % (self.job.id_, self.job.worker)
+        self.lock = "%s::%s::lockfile" % (self.job.id_, settings.WORKER_NAME)
 
     def __enter__(self):
         lv = self.job.connection.incr(self.lock)

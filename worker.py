@@ -1,28 +1,13 @@
 import json
-import logging
 import multiprocessing
 import os
 
 import redis
 
 from jobs import DaemonJob, TaskJob
+import loghelper as logging
 import settings
 
-
-logging.basicConfig(level=logging.DEBUG,
-                    datefmt='%m-%d %H:%M',
-                    format="%(asctime)-15s %(levelname)-8s %(worker)-20s "
-                           "%(job)-16s %(message)s")
-
-class ContextFilter(logging.Filter):
-    def filter(self, record):
-        if not getattr(record, "worker", None):
-            record.worker = "<unknown>"
-        if not getattr(record, "job", None):
-            record.worker = "<none>"
-        return True
-
-logging.addFilter(ContextFilter())
 
 CORES = multiprocessing.cpu_count()
 NAME = settings.WORKER_NAME
@@ -33,7 +18,8 @@ for i in range(CORES - 1):
         NAME += ".%d" % os.getpid()
         break
 
-logging.info("Worker was started.", worker=NAME)
+logging.WORKER = NAME
+logging.info("Worker was started.")
 
 connection = redis.StrictRedis(host=settings.HOST, port=6379)
 pubsub = connection.pubsub()
@@ -84,7 +70,6 @@ while 1:
             job_inst.run_job()
         except Exception as exc:
             logging.error("Job finished prematurely due to error. (%s)" %
-                              exc.message,
-                          worker=NAME, job=current_job)
+                              exc.message)
 
     job_inst.cleanup()

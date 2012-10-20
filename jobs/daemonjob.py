@@ -40,7 +40,7 @@ class DaemonJob(Job):
         self._action("startproc")
 
         def handler(signum, frame):
-            logging.info("Shutting down process.")
+            self.log.info("Shutting down process.")
             raise TimeoutException()
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(self.duration)
