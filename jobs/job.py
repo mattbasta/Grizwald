@@ -1,8 +1,10 @@
 import json
 import logging
+import os
 
 import console
 import settings
+from console import _run_command, JOBS_DIR, run_in_venv
 
 
 class Job(object):
@@ -22,10 +24,53 @@ class Job(object):
                                                        "job": self.id_})
 
     def deploy(self):
-        console.deploy(job_id=self.id_, repo=self.description["repo"],
-                       commit=self.description["commit"],
-                       install=self.description["install"],
-                       python_version=self.description["python"])
+        repo = self.description.get("repo")
+        commit = self.description.get("commit", None)
+
+        self.log.info("Deploying (%s)" % repo)
+        repo_dir = os.path.join(JOBS_DIR, self.id_)
+
+        def wait_for_deployment():
+            while not os.path.exists(os.path.join(repo_dir, "__unlocked__.py")):
+                time.sleep(1)
+
+        # If the repo was already set up, great!
+        if os.path.exists(repo_dir):
+            wait_for_deployment()
+            self.log.info("Job already configured")
+            return
+
+        # Create the directory to run the job in.
+        try:
+            os.mkdir(repo_dir)
+        except OSError:
+            if not os.path.exists(repo_dir):
+                self.log.error("Permissions error when creating repo directory.")
+                return
+            wait_for_deployment()
+            return
+
+        # Clone the repo into the directory.
+        self.log.debug("Cloning git repo")
+        _run_command("git clone %s %s" % (repo, self.id_), JOBS_DIR)
+        if commit is not None:
+            self.log.debug("Resetting to commit: %s" % commit)
+            _run_command("git reset --hard %s" % commit, repo_dir)
+
+        # Install the prereqs.
+        if self.description.get("install", True):
+            envdir = os.path.join(repo_dir, "venv")
+            os.mkdir(envdir)
+
+            self.log.debug("Creating virtualenv")
+            _run_command("virtualenv %s -p /usr/bin/python%s" %
+                             (envdir, self.description.get("python", "2.7")))
+
+            self.log.debug("Installing dependencies")
+            run_in_venv(self.id_, "pip install -r requirements.txt")
+
+        self.log.info("Completed deployment")
+        _run_command("touch __unlocked__.py", dir=repo_dir)
 
         self._action("deploy")
 
@@ -45,11 +90,27 @@ class Job(object):
         if not lock:
             self.log.debug("Cleanup lock acquired")
             # Delete the environment.
-            console.tear_down(self.id_)
+            self._tear_down(self.id_)
             # Delete the lock key.
             self.connection.delete(self.lock_id)
 
         self._action("cleanup")
+
+    def _tear_down(self):
+        self.log.info("Tearing down environment")
+
+        job_dir = os.path.join(JOBS_DIR, self.id_)
+        if not os.path.exists(job_dir):
+            return
+
+        try:
+            shutil.rmtree(job_dir)
+            self.log.info("Teardown completed successfully")
+        except Exception:
+            if os.path.exists(job_dir):
+                self.log.error("Permissions error during teardown")
+            else:
+                self.log.debug("Teardown already in process, aborting")
 
     def lock(self):
         return JobLock(self)
