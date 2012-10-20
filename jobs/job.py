@@ -14,6 +14,7 @@ class Job(object):
         self.connection = connection
         self.worker = worker
 
+        self.lock_id = "%s::%s::lockfile" % (self.id_, settings.WORKER_NAME)
         self.incomplete = True
 
         self.logger = logging.getLogger("grizwald.job")
@@ -39,15 +40,14 @@ class Job(object):
         self.log.debug("Cleaning up")
         self.connection.srem("jobs", self.id_)
 
-        lock_id = "%s::%s::lockfile" % (self.id_, self.worker)
-        self.log.debug("Polling deployment lock (%s)" % lock_id)
-        lock = int(self.connection.get(lock_id) or 0)
+        self.log.debug("Polling deployment lock (%s)" % self.lock_id)
+        lock = int(self.connection.get(self.lock_id) or 0)
         if not lock:
             self.log.debug("Cleanup lock acquired")
             # Delete the environment.
             console.tear_down(self.id_)
             # Delete the lock key.
-            self.connection.delete(lock_id)
+            self.connection.delete(self.lock_id)
 
         self._action("cleanup")
 
@@ -78,12 +78,11 @@ class JobLock(object):
 
     def __init__(self, job):
         self.job = job
-        self.lock = "%s::%s::lockfile" % (self.job.id_, settings.WORKER_NAME)
 
     def __enter__(self):
-        lv = self.job.connection.incr(self.lock)
-        self.job.log.debug("Deployment locked (lvl %d; %s)" % (lv, self.lock))
+        lv = self.job.connection.incr(self.job.lock_id)
+        self.job.log.debug("Deployment locked (lvl %d; %s)" % (lv, self.job.lock_id))
 
     def __exit__(self, type, value, traceback):
-        lv = self.job.connection.decr(self.lock)
-        self.job.log.debug("Deployment unlocked (lvl %d; %s)" % (lv, self.lock))
+        lv = self.job.connection.decr(self.job.lock_id)
+        self.job.log.debug("Deployment unlocked (lvl %d; %s)" % (lv, self.job.lock_id))
