@@ -35,6 +35,7 @@ class DaemonJob(Job):
         # Keep grabbing work until there is no more work.
         process_type, command = self.get_task()
         if not process_type:
+            self.log.info("No task available to start")
             return
 
         self._action("startproc")
@@ -45,13 +46,18 @@ class DaemonJob(Job):
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(self.duration)
 
+        self.log.info("Starting process (%s %s)" % (process_type, command))
         try:
             if process_type == "wsgi":
+                self.log.info("Installing gunicorn")
                 console.run_in_venv(self.id_, "pip install gunicorn")
                 self.wsgi(command)
             else:
                 self.proc(command)
+
+            self.log.info("Process terminated")
         except TimeoutException:
+            self.log.info("Process completed")
             return
 
         signal.alarm(0)

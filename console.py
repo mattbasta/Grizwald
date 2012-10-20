@@ -76,7 +76,7 @@ def deploy(job_id, repo, commit=None, install=False, python_version=2.7):
                      "pip install -r %s/requirements.txt" % (envdir, repo_dir))
 
     logging.info("Completed deployment")
-
+    _run_command("touch __unlocked__.py", dir=repo_dir)
 
 def tear_down(job_id):
     logging.info("Tearing down environment")
