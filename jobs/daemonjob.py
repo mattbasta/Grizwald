@@ -70,7 +70,7 @@ class DaemonJob(Job):
 
     def wsgi(self, command):
         port = random.randrange(9000, 9999)
-        host = "%s:%d" % (MY_IP, port)
+        host = "%s:%d" % ("0.0.0.0", port)
         self.output("wsgi %s @@ %s" % (command, host))
         console.run_in_venv(self.id_,
                             "gunicorn -w 4 -b %s %s" % (host, command))
