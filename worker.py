@@ -42,8 +42,6 @@ while 1:
     current_job = get_job()
     # If there's no work in the queue, wait for work.
     if not current_job:
-        pubsub = connection.pubsub()
-        pubsub.subscribe("work")
         current_job = pubsub.listen().next()
 
     # Double check that we're working on an active job and that it hasn't
@@ -55,6 +53,7 @@ while 1:
     job_description = connection.get(current_job)
     job_description = json.loads(job_description)
 
+    # Figure out which job handler to use.
     job_type = job_description.get("type", "unknown")
     job_inst = job_types.get(job_type)
     if not job_inst:

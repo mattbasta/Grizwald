@@ -1,4 +1,5 @@
 import json
+import logging
 
 import console
 
@@ -14,6 +15,13 @@ class Job(object):
 
         self.incomplete = True
 
+        self.logger = logging.getLogger("grizwald.job")
+        self.logger.basicConfig(
+            format="%(asctime)-15s %(levelname)-8s %(worker)-20s %(job)-16s "
+                   "%(message)s")
+        self.log = logging.LoggerAdapter(self.logger, {"worker": self.worker,
+                                                       "job": self.id_})
+
     def deploy(self):
         console.deploy(job_id=self.id_, repo=self.description["repo"],
                        commit=self.description["commit"],
@@ -23,17 +31,21 @@ class Job(object):
         self._action("deploy")
 
     def cancel(self):
+        self.log.debug("Cancelling")
         self.connection.delete("%s::work" % self.id_)
         self.connection.delete("%s::incomplete" % self.id_)
 
         self._action("cancel")
 
     def cleanup(self):
+        self.log.debug("Cleaning up")
         self.connection.srem("jobs", self.id_)
 
         lock_id = "%s::%s::lockfile" % (self.id_, self.worker)
+        self.log.debug("Polling deployment lock (%s)" % lock_id)
         lock = int(self.connection.get(lock_id) or 0)
         if not lock:
+            self.log.debug("Cleanup lock acquired")
             # Delete the environment.
             console.tear_down(self.id_)
             # Delete the lock key.
@@ -45,6 +57,7 @@ class Job(object):
         return JobLock(self)
 
     def output(self, data):
+        self.log.debug("Setting output")
         self.connection.set("%s::output" % self.id_, data)
         self.connection.expire("%s::output" % self.id_, 1800)
 
@@ -70,7 +83,9 @@ class JobLock(object):
         self.lock = "%s::%s::lockfile" % (self.job.id_, self.job.worker)
 
     def __enter__(self):
-        self.job.connection.incr(self.lock)
+        lv = self.job.connection.incr(self.lock)
+        self.job.log.debug("Deployment locked (lvl %d; %s)" % (lv, self.lock))
 
     def __exit__(self, type, value, traceback):
-        self.job.connection.decr(self.lock)
+        lv = self.job.connection.decr(self.lock)
+        self.job.log.debug("Deployment unlocked (lvl %d; %s)" % (lv, self.lock))
